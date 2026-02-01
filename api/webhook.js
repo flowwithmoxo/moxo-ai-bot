@@ -1,42 +1,62 @@
 export default async function handler(req, res) {
   console.log("WEBHOOK HIT!", req.method, req.body);
-  // Moxo sends POST requests
+  
+  // Only accept POST from Moxo
   if (req.method !== 'POST') {
-    return res.status(200).send('OK');
+    return res.status(200).send('OK - Webhook is live, waiting for POST from Moxo');
   }
 
   try {
-    // 1. Get message from Moxo webhook payload
+    // Return the full payload immediately so you can see what Moxo sent
+    return res.status(200).json({ 
+      status: "success",
+      message: "Joe received your message",
+      timestamp: new Date().toISOString(),
+      received_payload: req.body,  // This shows exactly what Moxo sent
+      extracted_message: req.body?.comment?.content || "No message content found",
+      binder_id: req.body?.binder_id || "No binder ID",
+      user_email: req.body?.user?.email || "No user email"
+    });
+
+    /* 
+    // UNCOMMENT THIS AFTER YOU VERIFY THE PAYLOAD WORKS
+    // Then add your environment variables (MOXO_DOMAIN, MOXO_CLIENT_ID, etc.)
+    
     const { comment, binder_id, user } = req.body;
     const messageText = comment?.content;
     
     if (!messageText) {
-      return res.status(200).send('No message');
+      return res.status(200).send('No message content');
     }
 
     console.log(`[Joe Bot] Received: "${messageText}" from ${user?.email}`);
 
-    // 2. Generate access token using your credentials
+    // Generate access token
     const accessToken = await generateMoxoToken();
     
-    // 3. Send echo reply back to Moxo
+    // Send echo reply
     const reply = `Hi, I'm Joe! I received: "${messageText}"`;
     await sendMessage(binder_id, accessToken, reply);
 
     return res.status(200).json({ success: true, bot: "Joe" });
+    */
 
   } catch (error) {
     console.error('[Joe Bot] Error:', error);
-    return res.status(200).send('Error handled'); // Always return 200 to Moxo
+    return res.status(200).json({ 
+      status: "error", 
+      error: error.message,
+      body_received: req.body 
+    });
   }
 }
 
-// Generate HMAC-SHA256 token (from your PDF Page 13)
+/* 
+// UNCOMMENT THESE FUNCTIONS AFTER YOU ADD ENVIRONMENT VARIABLES
+
 async function generateMoxoToken() {
   const crypto = await import('crypto');
-  
-  // Get from Environment Variables (don't hardcode in production)
-  const domain = process.env.MOXO_DOMAIN; // pavan-demo.moxo.com
+  const domain = process.env.MOXO_DOMAIN;
   const orgId = process.env.MOXO_ORG_ID;
   const clientId = process.env.MOXO_CLIENT_ID;
   const clientSecret = process.env.MOXO_CLIENT_SECRET;
@@ -44,7 +64,6 @@ async function generateMoxoToken() {
   const timestamp = Date.now().toString();
   const messageContent = clientId + orgId + timestamp;
 
-  // Create HMAC-SHA256
   const signature = crypto
     .createHmac('sha256', clientSecret)
     .update(messageContent)
@@ -53,7 +72,6 @@ async function generateMoxoToken() {
     .replace(/\//g, '_')
     .replace(/=/g, '');
 
-  // Call Moxo auth endpoint
   const tokenUrl = `https://${domain}/v1/apps/token`;
   const params = new URLSearchParams({
     client_id: clientId,
@@ -72,7 +90,6 @@ async function generateMoxoToken() {
   return data.access_token;
 }
 
-// Send message to Moxo (from your PDF Page 12)
 async function sendMessage(binderId, token, text) {
   const domain = process.env.MOXO_DOMAIN;
   const url = `https://${domain}/v1/${binderId}/messages?access_token=${token}`;
@@ -80,7 +97,7 @@ async function sendMessage(binderId, token, text) {
   const payload = {
     message: {
       text: text,
-      action: "chat" // "chat", "page", or "todo" per your PDF
+      action: "chat"
     }
   };
 
@@ -92,3 +109,4 @@ async function sendMessage(binderId, token, text) {
 
   return response.json();
 }
+*/
